@@ -1,30 +1,53 @@
 # ALEX CONNECTION BIBLE
 ## Статус: ONLINE (проверено 21.05.2026)
-## ws_server: ws://127.0.0.1:8446 | HTTP API: http://127.0.0.1:8450 | token: hermes-ws-secret-2026
 
-## Диагностика
-- ws_server v6 запущен на VPS (port 8446, HTTP 8450)
-- ALEX: ws_client v31, opencode serve stable
-- OpenRouter: qwen3.6-plus-free
+## Архитектура (ФАКТЫ, проверено)
+```
+HERMES (VPS) ←→ ws_server.py :8446 (HTTP :8450) ←→ ws_client.py (Windows) :4096 ←→ opencode serve (qwen3.6-plus-free)
+```
 
-## Процедура восстановления связи:
-1. Проверь статус: curl http://127.0.0.1:8450/api/status
-2. Если alex_connected=false → ws_server.py упал
-3. Перезапусти: cd /root/matryoshka && python3 ws_server.py &
-4. Проверь port: ss -tlnp | grep 8446
-5. Проверь WebSocket: python3 -c "import asyncio,websockets,json; asyncio.run(websockets.connect('ws://127.0.0.1:8446'))"
-6. Проверь OpenRouter: curl -s https://openrouter.ai/api/v1/models | grep qwen
+**Что использует АЛЕКС:**
+- НЕ OpenRouter — НЕ использует
+- OpenCode Zen → qwen3.6-plus-free (локальная модель на Windows)
+- ws_client.py v25 (чистый WebSocket, не websockets library)
+- opencode serve на порту 4096 (Windows)
 
-## Автоматический мониторинг (cron):
-- */5 * * * * curl -s http://127.0.0.1:8450/api/status | grep alex_connected
-- Если false 3 раза подряд → перезапусти ws_server и отправь alert в Telegram
+**Порты:**
+- VPS ws_server: :8446 (WebSocket), :8450 (HTTP API)
+- Windows opencode: :4096
 
-## Контакты:
+**Токен:** hermes-ws-secret-2026
+
+## Проверка связи
+```bash
+# VPS статус
+curl -s http://127.0.0.1:8450/api/status
+# Должно: {"alex_connected": true, ...}
+
+# VPS здоровье
+curl -s http://127.0.0.1:8450/api/health
+
+# Тест задачи АЛЕКСУ
+curl -s -X POST http://127.0.0.1:8450/api/delegate \
+  -H "Content-Type: application/json" \
+  -d '{"task_id":"test","text":"Return OK","timeout":20}'
+```
+
+## Процедура восстановления связи
+1. `curl -s http://127.0.0.1:8450/api/status` → alex_connected?
+2. Если false → ws_server упал → перезапусти:
+   ```bash
+   cd /root/matryoshka && python3 ws_server.py &
+   ```
+3. Проверь port: `ss -tlnp | grep 8446`
+4. Проверь АЛЕКС на Windows: tasklist | findstr python
+
+## Если АЛЕКС подключён но не отвечает
+ALEX подключён (alex_connected: true) но задачи timeout → opencode serve завис.
+Команда АЛЕКСУ: перезапустить opencode serve на Windows.
+
+## Контакты
 - VPS: webmaster@85.137.166.209
 - Windows: C:\matryoshka\bots\alex\
 - GitHub: matryoshkaailab-cyber/matryoshka-bots
 - Obsidian: /root/vaults/matryoshka-bots/alex/
-
-## Алерты:
-- Если ALEX не отвечает > 3 минут → Telegram уведомление
-- Если ws_server упал → перезапуск + уведомление
